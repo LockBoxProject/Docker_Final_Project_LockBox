@@ -9,6 +9,8 @@ export default function PasswordsPage() {
   const [title, setTitle] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showEditPassword, setShowEditPassword] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editPassword, setEditPassword] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
@@ -18,7 +20,33 @@ export default function PasswordsPage() {
   const API_BASE = 'http://localhost:3001'
   const token = localStorage.getItem('token')
 
-  // פונקציה לטיפול ב־401
+  // מחולל סיסמאות חזקות
+  const generatePassword = (length = 14) => {
+    const lower = 'abcdefghijklmnopqrstuvwxyz'
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const digits = '0123456789'
+    const symbols = '!@#$%^&*()-_=+[]{};:,.<>?'
+    const all = lower + upper + digits + symbols
+
+    // לוודא שיש לפחות תו אחד מכל סוג
+    let pwd = ''
+    pwd += lower[Math.floor(Math.random() * lower.length)]
+    pwd += upper[Math.floor(Math.random() * upper.length)]
+    pwd += digits[Math.floor(Math.random() * digits.length)]
+    pwd += symbols[Math.floor(Math.random() * symbols.length)]
+
+    for (let i = pwd.length; i < length; i++) {
+      pwd += all[Math.floor(Math.random() * all.length)]
+    }
+
+    // ערבוב פשוט
+    return pwd
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('')
+  }
+
+  // טיפול ב־401 (טוקן לא תקף / פג)
   const handleAuthFailure = (response, data) => {
     if (response.status === 401) {
       localStorage.removeItem('token')
@@ -37,6 +65,7 @@ export default function PasswordsPage() {
       return
     }
     fetchPasswords()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   // --- Fetch Passwords ---
@@ -140,6 +169,7 @@ export default function PasswordsPage() {
 
       setEditingId(null)
       setEditPassword('')
+      setShowEditPassword(false)
       await fetchPasswords()
     } catch (err) {
       setError('Connection error. Please try again.')
@@ -234,7 +264,7 @@ export default function PasswordsPage() {
     <div className="passwords-page">
       <header className="passwords-header">
         <div className="header-content">
-          <h1>🔑 My Passwords</h1>
+          <h1>🔑 My Passwords </h1>
           <button onClick={handleLogout} className="btn btn-secondary">
             Logout
           </button>
@@ -270,15 +300,37 @@ export default function PasswordsPage() {
 
                 <div className="form-group">
                   <label htmlFor="new-password">Password</label>
-                  <input
-                    id="new-password"
-                    type="password"
-                    placeholder="Enter password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <div className="password-generator">
+                    <div className="password-input-wrapper">
+                      <input
+                        id="new-password"
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="Enter password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+
+                      <button
+                        type="button"
+                        className="password-eye-btn"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showNewPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-small password-generator-btn"
+                      onClick={() => setPassword(generatePassword(14))}
+                    >
+                      Generate
+                    </button>
+                  </div>
                 </div>
+
 
                 <div className="form-actions">
                   <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -331,6 +383,7 @@ export default function PasswordsPage() {
                             onClick={() => {
                               setEditingId(pwd.id)
                               setEditPassword('')
+                              setShowEditPassword(false)
                             }}
                             className="btn-icon"
                             title="Edit"
@@ -351,13 +404,36 @@ export default function PasswordsPage() {
 
                   {editingId === pwd.id ? (
                     <div className="edit-form">
-                      <input
-                        type="password"
-                        placeholder="New password"
-                        value={editPassword}
-                        onChange={(e) => setEditPassword(e.target.value)}
-                        autoFocus
-                      />
+                      <div className="password-generator">
+                        <div className="password-input-wrapper">
+                          <input
+                            type={showEditPassword ? 'text' : 'password'}
+                            placeholder="New password"
+                            value={editPassword}
+                            onChange={(e) => setEditPassword(e.target.value)}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            className="password-eye-btn"
+                            onClick={() => setShowEditPassword((prev) => !prev)}
+                            aria-label={showEditPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showEditPassword ? '🙈' : '👁️'}
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-small password-generator-btn"
+                          onClick={() => setEditPassword(generatePassword(14))}
+                          title="Generate password"
+                          aria-label="Generate password"
+                        >
+                          ⚡
+                        </button>
+                      </div>
+
                       <div className="edit-actions">
                         <button
                           onClick={() => handleUpdatePassword(pwd.id)}
@@ -370,6 +446,7 @@ export default function PasswordsPage() {
                           onClick={() => {
                             setEditingId(null)
                             setEditPassword('')
+                            setShowEditPassword(false)
                           }}
                           className="btn btn-small btn-secondary"
                         >
