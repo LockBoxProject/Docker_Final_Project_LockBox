@@ -20,12 +20,12 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: passwordmanager-server
+    # container_name: passwordmanager-server
     restart: always
     env_file:
       - ./server/.env.docker
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       - db
 
