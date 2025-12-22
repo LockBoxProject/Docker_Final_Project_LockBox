@@ -1,40 +1,10 @@
-# name: CI
-
-# on:
-#   push:
-#     branches: ["main"]
-#   pull_request:
-
-# jobs:
-#   test:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Download code
-#         uses: actions/checkout@v4
-
-#       - name: Setup Node
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version: "20"
-
-#       - name: Install server dependencies
-#         working-directory: server
-#         run: npm ci
-
-#       - name: Run tests
-#         working-directory: server
-#         run: npm test
-
-#       - name: Build Docker image (no push)
-#         run: docker build -t lockbox-server:ci ./server
-
 name: CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   test:
@@ -51,10 +21,10 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u${MYSQL_USER} -p${MYSQL_PASSWORD}"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p${MYSQL_ROOT_PASSWORD}"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
 
     steps:
       - uses: actions/checkout@v4
@@ -62,16 +32,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: "npm"
+          cache-dependency-path: server/package-lock.json
 
       - name: Install server dependencies
         working-directory: server
-        run: npm install
+        run: npm ci
 
       - name: Run tests
         working-directory: server
         env:
           PORT: ${{ secrets.PORT }}
-          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_HOST: 127.0.0.1
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -79,11 +51,40 @@ jobs:
           ENCRYPTION_SECRET: ${{ secrets.ENCRYPTION_SECRET }}
         run: npm test
 
-  notify-failure:
+  docker-build-and-push:
     needs: test
-    if: failure()
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tags
+        id: meta
+        run: |
+          echo "IMAGE=password-manager-server" >> $GITHUB_OUTPUT
+          echo "TAG_SHA=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE }}:${{ steps.meta.outputs.TAG_SHA }}
+
+  notify-failure:
+    needs: [test, docker-build-and-push]
+    if: failure()
+    runs-on: ubuntu-latest
     steps:
       - name: Send email on failure
         uses: dawidd6/action-send-mail@v3
@@ -98,17 +99,5 @@ jobs:
             Repository: ${{ github.repository }}
             Branch: ${{ github.ref }}
             Commit: ${{ github.sha }}
-          to: ${{ secrets.EMAIL_TO }}
+          to: "${{ secrets.EMAIL_TO }}"
           from: GitHub Actions
-
-  docker-build-test:
-    needs: test
-    if: success()
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Docker build (test only)
-        run: |
-          docker build -t password-manager-server:test ./server
