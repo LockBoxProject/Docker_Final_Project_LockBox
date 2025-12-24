@@ -79,9 +79,9 @@ jobs:
           file: ./server/Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE }}:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE }}:${{ steps.meta.outputs.TAG_SHA }}
-            
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_SERVER }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_SERVER }}:${{ steps.meta.outputs.TAG_SHA }}
+
       - name: Build and push nginx (with frontend inside)
         uses: docker/build-push-action@v6
         with:
