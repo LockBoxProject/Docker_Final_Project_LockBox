@@ -62,7 +62,8 @@ jobs:
       - name: Set image tags
         id: meta
         run: |
-          echo "IMAGE=password-manager-server" >> $GITHUB_OUTPUT
+          echo "IMAGE_SERVER=password-manager-server" >> $GITHUB_OUTPUT
+          echo "IMAGE_NGINX=password-manager-nginx" >> $GITHUB_OUTPUT
           echo "TAG_SHA=${GITHUB_SHA}" >> $GITHUB_OUTPUT
 
       - name: Login to Docker Hub
@@ -71,7 +72,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push server
         uses: docker/build-push-action@v6
         with:
           context: ./server
@@ -80,7 +81,17 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE }}:${{ steps.meta.outputs.TAG_SHA }}
-
+            
+      - name: Build and push nginx (with frontend inside)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./nginx/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_NGINX }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.meta.outputs.IMAGE_NGINX }}:${{ steps.meta.outputs.TAG_SHA }}
+     
   notify-failure:
     needs: [test, docker-build-and-push]
     if: failure()
