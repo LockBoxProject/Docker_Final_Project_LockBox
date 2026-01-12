@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import '../styles/Auth.css'
 
@@ -7,6 +7,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
+    const [retryAfter, setRetryAfter] = useState(null)
     const navigate = useNavigate()
 
     const handleSubmit = async (e) => {
@@ -27,11 +28,15 @@ export default function LoginPage() {
 
             if (!response.ok) {
                 setError(data.message || 'Login failed')
+
+                if (data.retryAfter) {
+                    setRetryAfter(data.retryAfter)
+                }
+
                 return
             }
 
             if (!data.userId || !data.token) {
-                setError('Login response missing data')
                 return
             }
 
@@ -49,13 +54,41 @@ export default function LoginPage() {
         }
     }
 
+    useEffect(() => {
+      if (retryAfter === null) return
+
+      const interval = setInterval(() => {
+        setRetryAfter(prev => {
+          if (prev <= 1) {
+           clearInterval(interval)
+           setRetryAfter(null)
+           setError('') 
+            return null
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+     return () => clearInterval(interval)
+    }, [retryAfter])
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60)
+      const secs = seconds % 60
+      return `${minutes}:${secs}`
+    }
+
     return (
         <div className="auth-container">
             <div className="auth-card">
                 <h1>🔐 Login</h1>
                 <p className="auth-subtitle">Welcome back to your password manager</p>
 
-                {error && <div className="error-message">{error}</div>}
+                {error && (
+                  <div className="error-message">
+                    {error} {retryAfter !== null && `try again in ${formatTime(retryAfter)}.`}
+                 </div>
+                )}
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
@@ -82,13 +115,13 @@ export default function LoginPage() {
                         />
                     </div>
 
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                    <button type="submit" className="btn btn-primary" disabled={loading || retryAfter !== null}>
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
 
                 <p className="auth-footer">
-                    Don't have an account? <Link to="/register">Register here!!!!!!!</Link>
+                    Don't have an account? <Link to="/register">Register here</Link>
                 </p>
             </div>
         </div>

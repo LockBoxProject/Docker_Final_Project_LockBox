@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -12,6 +13,23 @@ const saltRounds = 10;
 
 app.use(cors());
 app.use(express.json());
+
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    const retryAfter = Math.ceil(
+      (req.rateLimit.resetTime - new Date()) / 1000
+    );
+
+    res.status(429).json({
+      message: "Too many login attempts. ",
+      retryAfter 
+    });
+  }
+});
 
 /* -------- HEALTH CHECK -------- */
 app.get("/health", (req, res) => {
@@ -71,7 +89,7 @@ app.post("/register", (req, res) => {
 });
 
 // login
-app.post("/login", (req, res) => {
+app.post("/login", loginLimiter, (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -81,18 +99,18 @@ app.post("/login", (req, res) => {
   db.query("SELECT * FROM users WHERE email = ?", [email], (err, results) => {
     if (err) return res.status(500).json({ message: "DB error" });
     if (results.length === 0)
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json({ message: "Invalid credentials" });
 
     const user = results[0];
 
     bcrypt.compare(password, user.password_hash, (err, same) => {
       if (!same)
-        return res.status(401).json({ message: "Wrong password" });
+        return res.status(401).json({ message: "Invalid credentials" });
 
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET,
-        { expiresIn: "2h" }
+        { expiresIn: "15m" }
       );
 
       res.json({ message: "Login ok", userId: user.id, token });
