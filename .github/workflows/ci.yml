@@ -134,5 +134,5 @@ jobs:
           script: |
             cd ${{ secrets.APP_PATH }}
             docker compose pull
-            docker compose up -d
+            docker compose up -d --scale server=3
             docker image prune -f
