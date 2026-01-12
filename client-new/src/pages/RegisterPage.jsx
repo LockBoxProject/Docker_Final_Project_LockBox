@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import '../styles/Auth.css'
 
 export default function RegisterPage() {
@@ -78,6 +79,7 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <PasswordStrengthMeter password={password} />
           </div>
 
           <div className="form-group">

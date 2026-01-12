@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const zxcvbn = require("zxcvbn");
 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -44,6 +45,32 @@ function authMiddleware(req, res, next) {
 
     next();
   });
+}
+
+/* -------- PASSWORD STRENGTH ANALYSIS -------- */
+app.post("/analyze-password", (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ message: "Password is required" });
+  }
+
+  const result = zxcvbn(password);
+  
+  res.json({
+    score: result.score,
+    crackTimeDisplay: result.crack_times_display.offline_slow_hashing_1e4_per_second,
+    feedback: {
+      warning: result.feedback.warning,
+      suggestions: result.feedback.suggestions
+    },
+    strength: getStrengthLabel(result.score)
+  });
+});
+
+function getStrengthLabel(score) {
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+  return labels[score] || 'Unknown';
 }
 
 /* -------- ROUTES -------- */

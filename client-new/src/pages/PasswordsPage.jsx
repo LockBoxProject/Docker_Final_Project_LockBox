@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter'
 import '../styles/PasswordsPage.css'
 
 export default function PasswordsPage() {
@@ -329,6 +330,7 @@ export default function PasswordsPage() {
                       Generate
                     </button>
                   </div>
+                  <PasswordStrengthMeter password={password} />
                 </div>
 
 
@@ -433,6 +435,7 @@ export default function PasswordsPage() {
                           ⚡
                         </button>
                       </div>
+                      <PasswordStrengthMeter password={editPassword} showDetails={false} />
 
                       <div className="edit-actions">
                         <button
